@@ -42,6 +42,18 @@ type Component struct {
 	Notes              string    `json:"notes,omitempty"`
 }
 
+type ComponentGraph struct {
+	Name                  string   `json:"name"`
+	Version               string   `json:"version"`
+	Purl                  string   `json:"purl"`
+	PurlCoordinates       string   `json:"purlCoordinates"`
+	UUID                  string   `json:"uuid"`
+	UsedBy                int64    `json:"usedBy"`
+	DependencyGraph       []string `json:"dependencyGraph"`
+	ExpandDependencyGraph bool     `json:"expandDependencyGraph"`
+	IsInternal            bool     `json:"isInternal"`
+}
+
 type ComponentService struct {
 	client *Client
 }
@@ -80,5 +92,19 @@ func (cs ComponentService) Create(ctx context.Context, projectUUID string, compo
 	}
 
 	_, err = cs.client.doRequest(req, &c)
+	return
+}
+
+func (cs ComponentService) Graph(ctx context.Context, projectUUID uuid.UUID, componentUUID uuid.UUID) (c map[string]ComponentGraph, err error) {
+	req, err := cs.client.newRequest(ctx, http.MethodGet, fmt.Sprintf("/api/v1/component/project/%s/dependencyGraph/%s", projectUUID, componentUUID))
+	if err != nil {
+		return
+	}
+
+	_, err = cs.client.doRequest(req, &c)
+	if err != nil {
+		return
+	}
+
 	return
 }
