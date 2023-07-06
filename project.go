@@ -25,12 +25,7 @@ type Project struct {
 	Tags               []Tag             `json:"tags,omitempty"`
 	Active             bool              `json:"active"`
 	Metrics            ProjectMetrics    `json:"metrics"`
-	ParentRef          *ParentRef        `json:"parent,omitempty"`
 	LastBOMImport      int               `json:"lastBomImport"`
-}
-
-type ParentRef struct {
-	UUID uuid.UUID `json:"uuid,omitempty"`
 }
 
 type ProjectService struct {
@@ -59,30 +54,6 @@ func (ps ProjectService) GetAll(ctx context.Context, params map[string]string, p
 	}
 
 	p.TotalCount = res.TotalCount
-	return
-}
-
-func (ps ProjectService) GetProjectsForName(ctx context.Context, name string, excludeInactive, onlyRoot bool) (p []Project, err error) {
-	excludeInactiveStr := "false"
-	onlyRootStr := "false"
-	if excludeInactive {
-		excludeInactiveStr = "true"
-	}
-	if onlyRoot {
-		onlyRootStr = "true"
-	}
-	params := map[string]string{
-		"name":            name,
-		"excludeInactive": excludeInactiveStr,
-		"onlyRoot":        onlyRootStr,
-	}
-
-	req, err := ps.client.newRequest(ctx, http.MethodGet, "/api/v1/project", withParams(params))
-	if err != nil {
-		return
-	}
-
-	_, err = ps.client.doRequest(req, &p)
 	return
 }
 
