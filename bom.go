@@ -16,6 +16,9 @@ type BOMUploadRequest struct {
 	ProjectUUID    *uuid.UUID `json:"project,omitempty"`
 	ProjectName    string     `json:"projectName,omitempty"`
 	ProjectVersion string     `json:"projectVersion,omitempty"`
+	ParentUUID     *uuid.UUID `json:"parentUUID,omitempty"`    // Since v4.8.0
+	ParentName     string     `json:"parentName,omitempty"`    // Since v4.8.0
+	ParentVersion  string     `json:"parentVersion,omitempty"` // Since v4.8.0
 	AutoCreate     bool       `json:"autoCreate"`
 	BOM            string     `json:"bom"`
 }
@@ -37,6 +40,7 @@ type BOMVariant string
 
 const (
 	BOMVariantInventory           BOMVariant = "inventory"
+	BOMVariantVDR                 BOMVariant = "vdr" // Since v4.7.0
 	BOMVariantWithVulnerabilities BOMVariant = "withVulnerabilities"
 )
 

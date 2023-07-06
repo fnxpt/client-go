@@ -10,6 +10,7 @@ import (
 const (
 	GroupBOMConsumed             = "BOM_CONSUMED"
 	GroupBOMProcessed            = "BOM_PROCESSED"
+	GroupBOMProcessingFailed     = "BOM_PROCESSING_FAILED"
 	GroupNewVulnerableDependency = "NEW_VULNERABLE_DEPENDENCY"
 	GroupNewVulnerability        = "NEW_VULNERABILITY"
 	GroupPolicyViolation         = "POLICY_VIOLATION"
@@ -82,6 +83,8 @@ func Parse(reader io.Reader) (n Notification, err error) {
 		fallthrough
 	case GroupBOMProcessed:
 		subject = &BOMSubject{}
+	case GroupBOMProcessingFailed:
+		subject = &BOMProcessingFailedSubject{}
 	case GroupNewVulnerableDependency:
 		subject = &NewVulnerableDependencySubject{}
 	case GroupNewVulnerability:

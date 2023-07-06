@@ -99,6 +99,7 @@ func (f FindingService) ExportFPF(ctx context.Context, projectUUID uuid.UUID) (d
 		return
 	}
 
+	d = []byte(fpf)
 	return
 }
 

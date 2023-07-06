@@ -112,6 +112,25 @@ func (ps ProjectService) Lookup(ctx context.Context, name, version string) (p Pr
 	return
 }
 
+func (ps ProjectService) GetAllByTag(ctx context.Context, tag string, po PageOptions) (p Page[Project], err error) {
+	params := map[string]string{
+		"tag": tag,
+	}
+
+	req, err := ps.client.newRequest(ctx, http.MethodGet, "/api/v1/project/tag/{tag}", withPathParams(params), withPageOptions(po))
+	if err != nil {
+		return
+	}
+
+	res, err := ps.client.doRequest(req, &p.Items)
+	if err != nil {
+		return
+	}
+
+	p.TotalCount = res.TotalCount
+	return
+}
+
 type ProjectCloneRequest struct {
 	ProjectUUID         uuid.UUID `json:"project"`
 	Version             string    `json:"version"`

@@ -9,6 +9,16 @@ type BOMSubject struct {
 	Project Project `json:"project"`
 }
 
+type BOMProcessingFailedSubject struct {
+	BOM struct {
+		Content     string `json:"content"`
+		Format      string `json:"format"`
+		SpecVersion string `json:"specVersion"`
+	} `json:"bom"`
+	Project Project `json:"project"`
+	Cause   string  `json:"cause"`
+}
+
 type NewVulnerableDependencySubject struct {
 	Component       Component       `json:"component"`
 	Project         Project         `json:"project"`
