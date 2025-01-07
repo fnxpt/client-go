@@ -4,28 +4,32 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/google/uuid"
 )
 
 type Project struct {
-	UUID               uuid.UUID         `json:"uuid,omitempty"`
-	Author             string            `json:"author,omitempty"`
-	Publisher          string            `json:"publisher,omitempty"`
-	Group              string            `json:"group,omitempty"`
-	Name               string            `json:"name,omitempty"`
-	Description        string            `json:"description,omitempty"`
-	Version            string            `json:"version,omitempty"`
-	Classifier         string            `json:"classifier,omitempty"`
-	CPE                string            `json:"cpe,omitempty"`
-	PURL               string            `json:"purl,omitempty"`
-	SWIDTagID          string            `json:"swidTagId,omitempty"`
-	DirectDependencies string            `json:"directDependencies,omitempty"`
-	Properties         []ProjectProperty `json:"properties,omitempty"`
-	Tags               []Tag             `json:"tags,omitempty"`
-	Active             bool              `json:"active"`
-	Metrics            ProjectMetrics    `json:"metrics"`
-	LastBOMImport      int               `json:"lastBomImport"`
+	UUID               uuid.UUID           `json:"uuid,omitempty"`
+	Author             string              `json:"author,omitempty"`
+	Publisher          string              `json:"publisher,omitempty"`
+	Group              string              `json:"group,omitempty"`
+	Name               string              `json:"name,omitempty"`
+	Description        string              `json:"description,omitempty"`
+	Version            string              `json:"version,omitempty"`
+	Classifier         string              `json:"classifier,omitempty"`
+	CPE                string              `json:"cpe,omitempty"`
+	PURL               string              `json:"purl,omitempty"`
+	SWIDTagID          string              `json:"swidTagId,omitempty"`
+	DirectDependencies string              `json:"directDependencies,omitempty"`
+	Properties         []ProjectProperty   `json:"properties,omitempty"`
+	Tags               []Tag               `json:"tags,omitempty"`
+	Active             bool                `json:"active"`
+	IsLatest           *bool               `json:"isLatest,omitempty"` // Since v4.12.0
+	Metrics            ProjectMetrics      `json:"metrics"`
+	ParentRef          *ParentRef          `json:"parent,omitempty"`
+	LastBOMImport      int                 `json:"lastBomImport"`
+	ExternalReferences []ExternalReference `json:"externalReferences,omitempty"`
 }
 
 type ProjectService struct {
@@ -54,6 +58,23 @@ func (ps ProjectService) GetAll(ctx context.Context, params map[string]string, p
 	}
 
 	p.TotalCount = res.TotalCount
+	return
+}
+
+
+func (ps ProjectService) GetProjectsForName(ctx context.Context, name string, excludeInactive, onlyRoot bool) (p []Project, err error) {
+	params := map[string]string{
+		"name":            name,
+		"excludeInactive": strconv.FormatBool(excludeInactive),
+		"onlyRoot":        strconv.FormatBool(onlyRoot),
+	}
+
+	req, err := ps.client.newRequest(ctx, http.MethodGet, "/api/v1/project", withParams(params))
+	if err != nil {
+		return
+	}
+
+	_, err = ps.client.doRequest(req, &p)
 	return
 }
 
@@ -112,12 +133,16 @@ func (ps ProjectService) Lookup(ctx context.Context, name, version string) (p Pr
 	return
 }
 
-func (ps ProjectService) GetAllByTag(ctx context.Context, tag string, po PageOptions) (p Page[Project], err error) {
-	params := map[string]string{
+func (ps ProjectService) GetAllByTag(ctx context.Context, tag string, excludeInactive, onlyRoot bool, po PageOptions) (p Page[Project], err error) {
+	pathParams := map[string]string{
 		"tag": tag,
 	}
+	params := map[string]string{
+		"excludeInactive": strconv.FormatBool(excludeInactive),
+		"onlyRoot":        strconv.FormatBool(onlyRoot),
+	}
 
-	req, err := ps.client.newRequest(ctx, http.MethodGet, "/api/v1/project/tag/{tag}", withPathParams(params), withPageOptions(po))
+	req, err := ps.client.newRequest(ctx, http.MethodGet, "/api/v1/project/tag/{tag}", withPathParams(pathParams), withParams(params), withPageOptions(po))
 	if err != nil {
 		return
 	}
@@ -132,21 +157,33 @@ func (ps ProjectService) GetAllByTag(ctx context.Context, tag string, po PageOpt
 }
 
 type ProjectCloneRequest struct {
-	ProjectUUID         uuid.UUID `json:"project"`
-	Version             string    `json:"version"`
-	IncludeAuditHistory bool      `json:"includeAuditHistory"`
-	IncludeComponents   bool      `json:"includeComponents"`
-	IncludeProperties   bool      `json:"includeProperties"`
-	IncludeServices     bool      `json:"includeServices"`
-	IncludeTags         bool      `json:"includeTags"`
+	ProjectUUID             uuid.UUID `json:"project"`
+	Version                 string    `json:"version"`
+	IncludeACL              bool      `json:"includeACL"`
+	IncludeAuditHistory     bool      `json:"includeAuditHistory"`
+	IncludeComponents       bool      `json:"includeComponents"`
+	IncludePolicyViolations *bool     `json:"includePolicyViolations,omitempty"` // Since v4.11.0
+	IncludeProperties       bool      `json:"includeProperties"`
+	IncludeServices         bool      `json:"includeServices"`
+	IncludeTags             bool      `json:"includeTags"`
+	MakeCloneLatest         *bool     `json:"makeCloneLatest,omitempty"` // Since v4.12.0
 }
 
-func (ps ProjectService) Clone(ctx context.Context, cloneReq ProjectCloneRequest) (err error) {
+// Clone triggers a cloning operation.
+// An EventToken is only returned for server versions 4.11.0 and newer.
+func (ps ProjectService) Clone(ctx context.Context, cloneReq ProjectCloneRequest) (token EventToken, err error) {
 	req, err := ps.client.newRequest(ctx, http.MethodPut, "/api/v1/project/clone", withBody(cloneReq))
 	if err != nil {
 		return
 	}
 
-	_, err = ps.client.doRequest(req, nil)
+	if ps.client.isServerVersionAtLeast("4.11.0") {
+		var tokenResponse EventTokenResponse
+		_, err = ps.client.doRequest(req, &tokenResponse)
+		token = tokenResponse.Token
+	} else {
+		_, err = ps.client.doRequest(req, nil)
+	}
+
 	return
 }

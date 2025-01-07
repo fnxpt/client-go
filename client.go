@@ -8,8 +8,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"golang.org/x/mod/semver"
 	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -31,6 +33,7 @@ type Client struct {
 	baseURL    *url.URL
 	userAgent  string
 	debug      bool
+	about      About
 
 	About             AboutService
 	Analysis          AnalysisService
@@ -38,10 +41,13 @@ type Client struct {
 	BOM               BOMService
 	Component         ComponentService
 	Finding           FindingService
+	Event             EventService
 	License           LicenseService
 	Metrics           MetricsService
+	OIDC              OIDCService
 	Permission        PermissionService
 	Policy            PolicyService
+	PolicyCondition   PolicyConditionService
 	PolicyViolation   PolicyViolationService
 	Project           ProjectService
 	ProjectProperty   ProjectPropertyService
@@ -84,10 +90,13 @@ func NewClient(baseURL string, options ...ClientOption) (*Client, error) {
 	client.BOM = BOMService{client: &client}
 	client.Component = ComponentService{client: &client}
 	client.Finding = FindingService{client: &client}
+	client.Event = EventService{client: &client}
 	client.License = LicenseService{client: &client}
 	client.Metrics = MetricsService{client: &client}
+	client.OIDC = OIDCService{client: &client}
 	client.Permission = PermissionService{client: &client}
 	client.Policy = PolicyService{client: &client}
+	client.PolicyCondition = PolicyConditionService{client: &client}
 	client.PolicyViolation = PolicyViolationService{client: &client}
 	client.Project = ProjectService{client: &client}
 	client.ProjectProperty = ProjectPropertyService{client: &client}
@@ -98,6 +107,11 @@ func NewClient(baseURL string, options ...ClientOption) (*Client, error) {
 	client.ViolationAnalysis = ViolationAnalysisService{client: &client}
 	client.Vulnerability = VulnerabilityService{client: &client}
 
+	client.about, err = client.About.Get(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch version information: %w", err)
+	}
+
 	return &client, nil
 }
 
@@ -105,6 +119,22 @@ func NewClient(baseURL string, options ...ClientOption) (*Client, error) {
 func (c Client) BaseURL() *url.URL {
 	u := *c.baseURL
 	return &u
+}
+
+func (c Client) isServerVersionAtLeast(targetVersion string) bool {
+	// semver requires versions to be prefixed with "v",
+	// and doesn't support "-SNAPSHOT" suffixes.
+	targetVersionNormalized := fmt.Sprintf("v%s", targetVersion)
+	actualVersionNormalized := fmt.Sprintf("v%s", strings.TrimSuffix(c.about.Version, "-SNAPSHOT"))
+	return semver.Compare(targetVersionNormalized, actualVersionNormalized) <= 0
+}
+
+func (c Client) assertServerVersionAtLeast(targetVersion string) error {
+	if !c.isServerVersionAtLeast(targetVersion) {
+		return fmt.Errorf("server version must be at least %s, but is %s", targetVersion, c.about.Version)
+	}
+
+	return nil
 }
 
 func (c Client) newRequest(ctx context.Context, method, path string, options ...requestOption) (*http.Request, error) {
@@ -181,6 +211,13 @@ func withBody(body interface{}) requestOption {
 				return err
 			}
 			contentType = "application/x-www-form-urlencoded"
+		case string:
+			bodyBuf = new(bytes.Buffer)
+			_, err := io.WriteString(bodyBuf, body)
+			contentType = "text/plain"
+			if err != nil {
+				return err
+			}
 		default:
 			bodyBuf = new(bytes.Buffer)
 			if err := json.NewEncoder(bodyBuf).Encode(body); err != nil {
@@ -191,6 +228,29 @@ func withBody(body interface{}) requestOption {
 
 		req.Body = io.NopCloser(bodyBuf)
 		req.Header.Set("Content-Type", contentType)
+
+		return nil
+	}
+}
+
+func withMultiPart(body url.Values) requestOption {
+	return func(req *http.Request) error {
+		if body == nil {
+			return nil
+		}
+
+		var bodyBuf bytes.Buffer
+		multipartWriter := multipart.NewWriter(&bodyBuf)
+		for key, valueList := range body {
+			for _, value := range valueList {
+				fw, _ := multipartWriter.CreateFormField(key)
+				_, _ = fw.Write([]byte(value))
+			}
+		}
+
+		_ = multipartWriter.Close()
+		req.Body = io.NopCloser(&bodyBuf)
+		req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
 
 		return nil
 	}
@@ -223,6 +283,13 @@ func withPageOptions(po PageOptions) requestOption {
 
 		req.URL.RawQuery = query.Encode()
 
+		return nil
+	}
+}
+
+func withAcceptContentType(contentType string) requestOption {
+	return func(req *http.Request) error {
+		req.Header.Set("Accept", contentType)
 		return nil
 	}
 }
