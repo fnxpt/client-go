@@ -7,6 +7,17 @@ import (
 	"github.com/google/uuid"
 )
 
+type ViolationPortfolioResponse []Violation
+
+type Violation struct {
+	Type            string          `json:"type"`
+	Project         Project         `json:"project"`
+	Component       Component       `json:"component"`
+	PolicyCondition PolicyCondition `json:"policyCondition"`
+	Timestamp       int64           `json:"timestamp"`
+	UUID            string          `json:"uuid"`
+}
+
 type ViolationAnalysisState string
 
 const (
@@ -37,6 +48,35 @@ type ViolationAnalysisRequest struct {
 
 type ViolationAnalysisService struct {
 	client *Client
+}
+
+func (vas ViolationAnalysisService) Portfolio(ctx context.Context) (va ViolationPortfolioResponse, err error) {
+	params := map[string]string{}
+
+	// pageNumber=1
+	// pageSize=100
+	// offset=1
+	// limit=1
+	// sortName=1
+	// sortOrder=asc%2C%20desc
+	// suppressed=true
+	// showInactive=true
+	// violationState=1
+	// riskType=1
+	// policy=1
+	// analysisState=1
+	// occurredOnDateFrom=1
+	// occurredOnDateTo=1
+	// textSearchField=1
+	// textSearchInput=1
+
+	req, err := vas.client.newRequest(ctx, http.MethodGet, "/api/v1/violation", withParams(params))
+	if err != nil {
+		return
+	}
+
+	_, err = vas.client.doRequest(req, &va)
+	return
 }
 
 func (vas ViolationAnalysisService) Get(ctx context.Context, componentUUID, policyViolationUUID uuid.UUID) (va ViolationAnalysis, err error) {

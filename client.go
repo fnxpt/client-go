@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/mod/semver"
 	"io"
 	"log"
 	"mime/multipart"
@@ -19,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/mod/semver"
 )
 
 const (
@@ -36,6 +37,7 @@ type Client struct {
 	about      About
 
 	About             AboutService
+	AccessManagement  AccessManagementService
 	Analysis          AnalysisService
 	BOM               BOMService
 	Component         ComponentService
@@ -85,6 +87,7 @@ func NewClient(baseURL string, options ...ClientOption) (*Client, error) {
 	}
 
 	client.About = AboutService{client: &client}
+	client.AccessManagement = AccessManagementService{client: &client}
 	client.Analysis = AnalysisService{client: &client}
 	client.BOM = BOMService{client: &client}
 	client.Component = ComponentService{client: &client}

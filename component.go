@@ -42,12 +42,35 @@ type Component struct {
 	Notes              string              `json:"notes,omitempty"`
 	ExternalReferences []ExternalReference `json:"externalReferences,omitempty"`
 	Project            *Project            `json:"project,omitempty"`
+	RepositoryMeta     *RepositoryMeta     `json:"repositoryMeta,omitempty"`
+	Metrics            map[string]float64  `json:"metrics"`
 }
 
 type ExternalReference struct {
 	Type    string `json:"type,omitempty"`
 	URL     string `json:"url,omitempty"`
 	Comment string `json:"comment,omitempty"`
+}
+
+type RepositoryMeta struct {
+	RepositoryType string `json:"repositoryType"`
+	Namespace      string `json:"namespace"`
+	Name           string `json:"name"`
+	LatestVersion  string `json:"latestVersion"`
+	Published      int64  `json:"published"`
+	LastCheck      int64  `json:"lastCheck"`
+}
+
+type ComponentGraph struct {
+	Name                  string   `json:"name"`
+	Version               string   `json:"version"`
+	Purl                  string   `json:"purl"`
+	PurlCoordinates       string   `json:"purlCoordinates"`
+	UUID                  string   `json:"uuid"`
+	UsedBy                int64    `json:"usedBy"`
+	DependencyGraph       []string `json:"dependencyGraph"`
+	ExpandDependencyGraph bool     `json:"expandDependencyGraph"`
+	IsInternal            bool     `json:"isInternal"`
 }
 
 type ComponentService struct {
@@ -99,5 +122,17 @@ func (cs ComponentService) Update(ctx context.Context, component Component) (c C
 		return
 	}
 	_, err = cs.client.doRequest(req, &c)
+	return
+}
+
+func (cs ComponentService) Graph(ctx context.Context, projectUUID uuid.UUID, componentUUID uuid.UUID) (c map[string]ComponentGraph, err error) {
+	req, err := cs.client.newRequest(ctx, http.MethodGet, fmt.Sprintf("/api/v1/component/project/%s/dependencyGraph/%s", projectUUID, componentUUID))
+	if err != nil {
+		return
+	}
+	_, err = cs.client.doRequest(req, &c)
+	if err != nil {
+		return
+	}
 	return
 }
