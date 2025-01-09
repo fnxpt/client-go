@@ -50,8 +50,7 @@ type ViolationAnalysisService struct {
 	client *Client
 }
 
-func (vas ViolationAnalysisService) Portfolio(ctx context.Context) (va ViolationPortfolioResponse, err error) {
-	params := map[string]string{}
+func (vas ViolationAnalysisService) Portfolio(ctx context.Context, params map[string]string, po PageOptions) (p Page[ViolationPortfolioResponse], err error) {
 
 	// pageNumber=1
 	// pageSize=100
@@ -70,27 +69,29 @@ func (vas ViolationAnalysisService) Portfolio(ctx context.Context) (va Violation
 	// textSearchField=1
 	// textSearchInput=1
 
-	req, err := vas.client.newRequest(ctx, http.MethodGet, "/api/v1/violation", withParams(params))
+	req, err := vas.client.newRequest(ctx, http.MethodGet, "/api/v1/violation", withParams(params), withPageOptions(po))
 	if err != nil {
 		return
 	}
 
-	_, err = vas.client.doRequest(req, &va)
+	res, err := vas.client.doRequest(req, &p.Items)
+
+	p.TotalCount = res.TotalCount
+
 	return
 }
 
-func (vas ViolationAnalysisService) Get(ctx context.Context, componentUUID, policyViolationUUID uuid.UUID) (va ViolationAnalysis, err error) {
-	params := map[string]string{
-		"component":       componentUUID.String(),
-		"policyViolation": policyViolationUUID.String(),
-	}
+func (vas ViolationAnalysisService) Get(ctx context.Context, componentUUID, policyViolationUUID uuid.UUID, params map[string]string, po PageOptions) (p Page[ViolationAnalysis], err error) {
 
-	req, err := vas.client.newRequest(ctx, http.MethodGet, "/api/v1/violation/analysis", withParams(params))
+	req, err := vas.client.newRequest(ctx, http.MethodGet, "/api/v1/violation/analysis", withParams(params), withPageOptions(po))
 	if err != nil {
 		return
 	}
 
-	_, err = vas.client.doRequest(req, &va)
+	res, err := vas.client.doRequest(req, &p.Items)
+
+	p.TotalCount = res.TotalCount
+
 	return
 }
 
