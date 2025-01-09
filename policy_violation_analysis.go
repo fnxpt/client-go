@@ -7,8 +7,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type ViolationPortfolioResponse []Violation
-
 type Violation struct {
 	Type            string          `json:"type"`
 	Project         Project         `json:"project"`
@@ -50,7 +48,7 @@ type ViolationAnalysisService struct {
 	client *Client
 }
 
-func (vas ViolationAnalysisService) Portfolio(ctx context.Context, params map[string]string, po PageOptions) (p Page[ViolationPortfolioResponse], err error) {
+func (vas ViolationAnalysisService) Portfolio(ctx context.Context, params map[string]string, po PageOptions) (p Page[Violation], err error) {
 
 	// pageNumber=1
 	// pageSize=100
@@ -81,7 +79,7 @@ func (vas ViolationAnalysisService) Portfolio(ctx context.Context, params map[st
 	return
 }
 
-func (vas ViolationAnalysisService) GetProject(ctx context.Context, projectUUID uuid.UUID, params map[string]string, po PageOptions) (p Page[ViolationPortfolioResponse], err error) {
+func (vas ViolationAnalysisService) GetProject(ctx context.Context, projectUUID uuid.UUID, params map[string]string, po PageOptions) (p Page[Violation], err error) {
 
 	// pageNumber=1
 	// pageSize=100
